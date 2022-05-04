@@ -63,6 +63,10 @@ public class DatabaseIntegrationTest {
             var queue = queueList.get(0);
             assertThat(queue.id).isEqualTo(UUID.fromString("466b4029-6eff-4698-b854-01bf9cdfd091"));
             assertThat(queue.name).isEqualTo("test");
+            var expectedMessage = """
+                    {"name": "value"}
+                    """;
+            assertThat(queue.message).isEqualTo(mapper.readTree(expectedMessage));
         } catch (SQLException e) {
             fail("SQL failure", e);
         } catch (JsonProcessingException e) {
