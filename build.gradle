@@ -18,7 +18,7 @@ dependencies {
 
 	// JSON
 	implementation "com.fasterxml.jackson.core:jackson-core:${jacksonVersion}"
-	implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+	implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonDatabindVersion}"
 
 	// Logging
 	implementation "org.slf4j:slf4j-api:${slf4jVersion}"
