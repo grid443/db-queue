@@ -33,7 +33,7 @@ public class DatabaseTestContainer {
     }
 
     private JdbcDatabaseContainer<?> create() {
-        final var portBinding = new PortBinding(bindPort(POSTGRESQL_PORT), new ExposedPort(config.port));
+        final var portBinding = new PortBinding(bindPort(config.port), new ExposedPort(POSTGRESQL_PORT));
         final var hostConfig = new HostConfig().withPortBindings(portBinding);
         return new PostgreSQLContainer<>(DockerImageName.parse(IMAGE).withTag(PG_VERSION))
                 .withDatabaseName(config.databaseName)

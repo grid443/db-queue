@@ -5,15 +5,17 @@ import static java.lang.String.format;
 
 public class DatabaseConnectionConfig {
     private static final String URL_TEMPLATE = "jdbc:postgresql://localhost:%s/%s";
-    public final int port = 5432;
+    public final int port;
     public final String url;
     public final String username;
     public final String password;
     public final String databaseName;
 
-    public DatabaseConnectionConfig(String username,
+    public DatabaseConnectionConfig(int port,
+                                    String username,
                                     String password,
                                     String databaseName) {
+        this.port = port;
         this.username = required("username", username);
         this.password = required("password", password);
         this.databaseName = required("databaseName", databaseName);

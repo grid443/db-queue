@@ -24,7 +24,7 @@ public class DatabaseIntegrationTest {
     @Test
     void should_process_db_migrations() throws Exception {
         // given
-        var config = new DatabaseConnectionConfig("test", "test", "message");
+        var config = new DatabaseConnectionConfig(5431, "test", "test", "message");
         var testContainer = new DatabaseTestContainer(config);
         testContainer.start();
 
