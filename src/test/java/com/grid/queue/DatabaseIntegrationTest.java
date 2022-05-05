@@ -1,29 +1,30 @@
 package com.grid.queue;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.grid.queue.config.ConnectionPool;
 import com.grid.queue.config.DatabaseConnectionConfig;
 import com.grid.queue.config.DatabaseTestContainer;
-import com.grid.queue.model.Queue;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.UUID;
+import com.grid.queue.message.JdbcMessageRepository;
+import com.grid.queue.message.Message;
+import java.time.ZonedDateTime;
+import java.util.Optional;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.configuration.FluentConfiguration;
 import org.junit.jupiter.api.Test;
 
+import static com.grid.queue.message.MessageState.CREATED;
+import static java.time.temporal.ChronoUnit.MICROS;
+import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 
 public class DatabaseIntegrationTest {
 
     private static final String PUBLIC_SCHEMA = "public";
 
     @Test
-    void should_process_db_migrations() {
+    void should_process_db_migrations() throws Exception {
         // given
-        var config = new DatabaseConnectionConfig("test", "test", "queue");
+        var config = new DatabaseConnectionConfig("test", "test", "message");
         var testContainer = new DatabaseTestContainer(config);
         testContainer.start();
 
@@ -35,44 +36,25 @@ public class DatabaseIntegrationTest {
         var flyway = new Flyway(migrationConfig);
         var result = flyway.migrate();
         assertThat(result.success).isTrue();
-        assertThat(result.migrations).hasSize(1);
-        var mapper = new ObjectMapper(); // TODO move to the configuration
+        assertThat(result.migrations).isNotEmpty();
+        var mapper = new ObjectMapper();
 
-        var query = """
-                        SELECT id,
-                               name,
-                               message
-                        FROM queue
+        var repository = new JdbcMessageRepository(connectionPool.dataSource(), mapper);
+        var bodyString = """
+                {"name": "value"}
                 """;
+        var body = mapper.readTree(bodyString);
+        var createdAt = ZonedDateTime.now().truncatedTo(MICROS);
+        var message = new Message(randomUUID(), "test_queue", CREATED, body, createdAt);
+        repository.add(message);
 
-        try (var connection = connectionPool.getConnection(); var statement = connection.prepareStatement(query)) {
+        // when
+        var savedMessage = repository.getLast();
 
-            // when
-            var resultSet = statement.executeQuery();
+        //then
+        assertThat(savedMessage).isEqualTo(Optional.of(message));
 
-            // then
-            var queueList = new ArrayList<Queue>();
-            while (resultSet.next()) {
-                var id = UUID.fromString(resultSet.getString("id"));
-                var name = resultSet.getString("name");
-                var messageString = resultSet.getString("message");
-                var message = mapper.readTree(messageString);
-                queueList.add(new Queue(id, name, message));
-            }
-            assertThat(queueList).hasSize(1);
-            var queue = queueList.get(0);
-            assertThat(queue.id).isEqualTo(UUID.fromString("466b4029-6eff-4698-b854-01bf9cdfd091"));
-            assertThat(queue.name).isEqualTo("test");
-            var expectedMessage = """
-                    {"name": "value"}
-                    """;
-            assertThat(queue.message).isEqualTo(mapper.readTree(expectedMessage));
-        } catch (SQLException e) {
-            fail("SQL failure", e);
-        } catch (JsonProcessingException e) {
-            fail("JSON parsing failure", e);
-        }
-
+        // cleanup
         flyway.clean();
         testContainer.shutdown();
     }

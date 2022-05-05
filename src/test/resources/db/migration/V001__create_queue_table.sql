@@ -1,8 +1,12 @@
-CREATE TABLE queue
+CREATE TABLE message
 (
-    id      UUID PRIMARY KEY,
-    name    VARCHAR NOT NULL,
-    message JSONB   NOT NULL
+    id         UUID PRIMARY KEY,
+    queue_name VARCHAR NOT NULL,
+    state      VARCHAR NOT NULL,
+    body       JSONB   NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE
 );
 
-INSERT INTO queue (id, name, message) VALUES ('466b4029-6eff-4698-b854-01bf9cdfd091', 'test', '{"name": "value"}'::JSONB);
+CREATE INDEX ix_message_queue_name_state ON message (queue_name, state);
+CREATE INDEX ix_message_created_at ON message (created_at);
+
