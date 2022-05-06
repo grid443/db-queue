@@ -15,4 +15,8 @@ public record Message(UUID id, String queueName, MessageState state, JsonNode bo
         this.body = required("body", body);
         this.createdAt = required("createdAt", createdAt);
     }
+
+    public Message updateState(MessageState newState) {
+        return new Message(id, queueName, newState, body, createdAt);
+    }
 }

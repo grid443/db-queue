@@ -2,6 +2,7 @@ package com.grid.queue.message;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -14,6 +15,7 @@ import java.util.UUID;
 import javax.sql.DataSource;
 import org.postgresql.util.PGobject;
 
+import static com.grid.queue.message.MessageState.PROCESSED;
 import static com.grid.queue.validation.Validation.required;
 import static java.util.Optional.empty;
 
@@ -25,13 +27,18 @@ public class JdbcMessageRepository implements MessageRepository {
               queue_name,
               state,
               body,
-              created_at,
-              to_char(created_at, '')
+              created_at
             FROM message
             WHERE state = 'CREATED'
-            ORDER BY created_at DESC
+            ORDER BY created_at ASC
             LIMIT 1
             FOR UPDATE SKIP LOCKED
+            """;
+
+    private static final String UPDATE_MESSAGE_STATE_QUERY = """
+            UPDATE message
+            SET state = ?
+            WHERE id = ?
             """;
 
     private static final String INSERT_MESSAGE_QUERY = """
@@ -50,17 +57,48 @@ public class JdbcMessageRepository implements MessageRepository {
     }
 
     @Override
-    public Optional<Message> getLast() {
+    public Optional<Message> processOldestTask(Task task) {
         try (final var connection = dataSource.getConnection();
-             final var statement = connection.prepareStatement(GET_LAST_MESSAGE_QUERY)) {
-            final var resultSet = statement.executeQuery();
-            if (resultSet.next()) {
-                return Optional.of(fromResultSet(resultSet));
-            } else {
-                return empty();
+             final var getMessage = connection.prepareStatement(GET_LAST_MESSAGE_QUERY);
+             final var updateMessageState = connection.prepareStatement(UPDATE_MESSAGE_STATE_QUERY)) {
+            try {
+                connection.setAutoCommit(false);
+                final var result = processMessage(getMessage, updateMessageState, task);
+                connection.commit();
+                return result;
+            } catch (Exception e) {
+                connection.rollback();
+                throw e;
             }
         } catch (Exception e) {
             throw new RuntimeException("Error getting the last message from the queue", e);
+        }
+    }
+
+    private Optional<Message> processMessage(PreparedStatement getMessage,
+                                             PreparedStatement updateMessageState,
+                                             Task task) throws SQLException, JsonProcessingException {
+        final var resultSet = getMessage.executeQuery();
+        if (resultSet.next()) {
+            return Optional.of(fromResultSet(resultSet))
+                    .map(message -> executeTask(message, task, updateMessageState));
+        } else {
+            return empty();
+        }
+    }
+
+    private Message executeTask(Message message, Task task, PreparedStatement updateMessageState) {
+        try {
+            task.execute(message);
+            updateMessageState.setString(1, PROCESSED.name());
+            updateMessageState.setObject(2, message.id());
+            int updated = updateMessageState.executeUpdate();
+            if (updated != 1) {
+                throw new IllegalStateException();
+            }
+            return message.updateState(PROCESSED);
+        } catch (Exception e) {
+            throw new RuntimeException("Error processing task", e);
         }
     }
 
