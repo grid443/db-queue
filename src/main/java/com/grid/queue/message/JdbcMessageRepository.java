@@ -14,12 +14,17 @@ import java.util.TimeZone;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.postgresql.util.PGobject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static com.grid.queue.message.MessageState.PROCESSED;
 import static com.grid.queue.validation.Validation.required;
+import static java.time.LocalDateTime.now;
 import static java.util.Optional.empty;
 
 public class JdbcMessageRepository implements MessageRepository {
+
+    private static final Logger LOG = LoggerFactory.getLogger(JdbcMessageRepository.class);
 
     private static final String GET_LAST_MESSAGE_QUERY = """
             SELECT
@@ -83,12 +88,14 @@ public class JdbcMessageRepository implements MessageRepository {
             return Optional.of(fromResultSet(resultSet))
                     .map(message -> executeTask(message, task, updateMessageState));
         } else {
+            LOG.info("[{}] Cancel task. Message queue is empty", now());
             return empty();
         }
     }
 
     private Message executeTask(Message message, Task task, PreparedStatement updateMessageState) {
         try {
+            LOG.info("[{}] START. Execute Message[{}] State[{}]", now(), message.id(), message.state());
             task.execute(message);
             updateMessageState.setString(1, PROCESSED.name());
             updateMessageState.setObject(2, message.id());
@@ -96,7 +103,9 @@ public class JdbcMessageRepository implements MessageRepository {
             if (updated != 1) {
                 throw new IllegalStateException();
             }
-            return message.updateState(PROCESSED);
+            var processedMessage = message.updateState(PROCESSED);
+            LOG.info("[{}] FINISH. Execute Message[{}] State[{}]", now(), processedMessage.id(), processedMessage.state());
+            return processedMessage;
         } catch (Exception e) {
             throw new RuntimeException("Error processing task", e);
         }
