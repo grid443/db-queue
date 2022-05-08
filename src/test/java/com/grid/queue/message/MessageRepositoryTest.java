@@ -2,19 +2,19 @@ package com.grid.queue.message;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.grid.queue.DatabaseIntegrationTest;
-import java.time.ZonedDateTime;
+import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.Test;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import org.junit.jupiter.api.RepeatedTest;
-import org.junit.jupiter.api.Test;
 
 import static com.grid.queue.message.MessageState.CREATED;
 import static com.grid.queue.message.MessageState.PROCESSED;
-import static java.time.temporal.ChronoUnit.MICROS;
+import static java.time.ZonedDateTime.now;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.stream.Collectors.toSet;
@@ -85,7 +85,7 @@ public class MessageRepositoryTest extends DatabaseIntegrationTest {
         var messages = new ArrayList<Message>();
         var body = buildMessageBody();
         for (int i = 0; i < count; i++) {
-            var message = new Message(randomUUID(), "test_queue", CREATED, body, ZonedDateTime.now().truncatedTo(MICROS));
+            var message = new Message(randomUUID(), "test_queue", CREATED, body, now());
             repository.add(message);
             messages.add(message);
         }
@@ -107,7 +107,7 @@ public class MessageRepositoryTest extends DatabaseIntegrationTest {
         var body = buildMessageBody();
         long count = finishLatch.getCount();
         for (int i = 0; i < count; i++) {
-            var message = new Message(randomUUID(), "test_queue", CREATED, body, ZonedDateTime.now().truncatedTo(MICROS));
+            var message = new Message(randomUUID(), "test_queue", CREATED, body, now());
             repository.add(message);
             var task = new SimpleStatefulTask();
             var worker = new CoordinatedWorker(task, startLatch, finishLatch);

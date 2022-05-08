@@ -5,6 +5,7 @@ import java.time.ZonedDateTime;
 import java.util.UUID;
 
 import static com.grid.queue.validation.Validation.required;
+import static java.time.temporal.ChronoUnit.MICROS;
 
 public record Message(UUID id, String queueName, MessageState state, JsonNode body, ZonedDateTime createdAt) {
 
@@ -13,7 +14,7 @@ public record Message(UUID id, String queueName, MessageState state, JsonNode bo
         this.queueName = required("queueName", queueName);
         this.state = required("state", state);
         this.body = required("body", body);
-        this.createdAt = required("createdAt", createdAt);
+        this.createdAt = required("createdAt", createdAt).truncatedTo(MICROS); // Postgres doesn't support nanoseconds precision
     }
 
     public Message updateState(MessageState newState) {
