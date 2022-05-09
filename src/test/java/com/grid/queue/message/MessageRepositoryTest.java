@@ -17,6 +17,7 @@ import static com.grid.queue.message.MessageState.PROCESSED;
 import static java.time.ZonedDateTime.now;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.Collectors.toSet;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -33,7 +34,7 @@ public class MessageRepositoryTest extends DatabaseIntegrationTest {
         // when
         workers.stream().map(Thread::new).forEach(Thread::start);
         startLatch.countDown();
-        finishLatch.await();
+        assertThat(finishLatch.await(1, SECONDS)).isTrue();
 
         //then
         var processedMessageIds = workers.stream()
@@ -57,7 +58,7 @@ public class MessageRepositoryTest extends DatabaseIntegrationTest {
 
         // when
         workers.forEach(task -> runTaskWithDelay(task, MILLISECONDS, 300));
-        finishLatch.await();
+        assertThat(finishLatch.await(3, SECONDS)).isTrue();
 
         // then
         var processedMessageIds = workers.stream()
@@ -139,7 +140,7 @@ public class MessageRepositoryTest extends DatabaseIntegrationTest {
         @Override
         public void run() {
             try {
-                startLatch.await();
+                assertThat(startLatch.await(3, SECONDS)).isTrue();
                 processMessage(task);
                 finishLatch.countDown();
             } catch (Exception e) {
