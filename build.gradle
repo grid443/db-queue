@@ -13,7 +13,7 @@ repositories {
 dependencies {
 	// Database
 	implementation "org.flywaydb:flyway-core:${flywayVersion}"
-	implementation "org.postgresql:postgresql:${postgresDriverVersion}"
+	implementation "com.impossibl.pgjdbc-ng:pgjdbc-ng:${postgresDriverVersion}"
     implementation "com.zaxxer:HikariCP:${hikariCPVersion}"
 
 	// JSON

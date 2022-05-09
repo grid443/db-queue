@@ -2,6 +2,10 @@ package com.grid.queue.message;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.sql.DataSource;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -12,13 +16,10 @@ import java.util.Calendar;
 import java.util.Optional;
 import java.util.TimeZone;
 import java.util.UUID;
-import javax.sql.DataSource;
-import org.postgresql.util.PGobject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import static com.grid.queue.message.MessageState.PROCESSED;
 import static com.grid.queue.validation.Validation.required;
+import static com.impossibl.postgres.api.jdbc.PGType.JSONB;
 import static java.time.LocalDateTime.now;
 import static java.util.Optional.empty;
 
@@ -115,14 +116,11 @@ public class JdbcMessageRepository implements MessageRepository {
     public void add(Message message) {
         try (final var connection = dataSource.getConnection();
              final var statement = connection.prepareStatement(INSERT_MESSAGE_QUERY)) {
-            final var body = new PGobject();
-            body.setType("JSONB");
-            body.setValue(message.body().toString());
             final var createdAt = Timestamp.valueOf(message.createdAt().toLocalDateTime());
             statement.setObject(1, message.id());
             statement.setString(2, message.queueName());
             statement.setString(3, message.state().name());
-            statement.setObject(4, body);
+            statement.setObject(4, message.body().toString(), JSONB);
             statement.setObject(5, createdAt);
             statement.executeUpdate();
         } catch (Exception e) {
