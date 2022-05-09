@@ -18,7 +18,7 @@ public abstract class DatabaseIntegrationTest {
     protected static final ObjectMapper mapper;
 
     static {
-        var config = new DatabaseConnectionConfig(5431, "test", "test", "message");
+        var config = new DatabaseConnectionConfig("localhost", 5431, "message", "test", "test");
         var testContainer = new DatabaseTestContainer(config);
         testContainer.start();
 

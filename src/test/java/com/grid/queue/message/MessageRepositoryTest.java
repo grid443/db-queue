@@ -28,7 +28,7 @@ public class MessageRepositoryTest extends DatabaseIntegrationTest {
         var startLatch = new CountDownLatch(1);
         var tasksCount = 10;
         var finishLatch = new CountDownLatch(tasksCount);
-        final var workers = createWorkers(startLatch, finishLatch);
+        var workers = createWorkers(startLatch, finishLatch);
 
         // when
         workers.stream().map(Thread::new).forEach(Thread::start);

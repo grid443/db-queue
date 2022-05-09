@@ -33,12 +33,12 @@ public class DatabaseTestContainer {
     }
 
     private JdbcDatabaseContainer<?> create() {
-        final var portBinding = new PortBinding(bindPort(config.port), new ExposedPort(POSTGRESQL_PORT));
+        final var portBinding = new PortBinding(bindPort(config.port()), new ExposedPort(POSTGRESQL_PORT));
         final var hostConfig = new HostConfig().withPortBindings(portBinding);
         return new PostgreSQLContainer<>(DockerImageName.parse(IMAGE).withTag(PG_VERSION))
-                .withDatabaseName(config.databaseName)
-                .withUsername(config.username)
-                .withPassword(config.password)
+                .withDatabaseName(config.databaseName())
+                .withUsername(config.username())
+                .withPassword(config.password())
                 .withCreateContainerCmdModifier(cmd -> cmd.withHostConfig(hostConfig));
     }
 }

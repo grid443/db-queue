@@ -1,23 +1,17 @@
 package com.grid.queue.config;
 
+import com.impossibl.postgres.jdbc.PGDataSource;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import java.sql.Connection;
-import java.sql.SQLException;
+
 import javax.sql.DataSource;
-import org.postgresql.ds.PGSimpleDataSource;
 
 public class ConnectionPool {
     private final HikariDataSource ds;
 
     public ConnectionPool(DatabaseConnectionConfig connectionConfig) {
-        final var dataSource = new PGSimpleDataSource();
-        dataSource.setUrl(connectionConfig.url);
-        dataSource.setUser(connectionConfig.username);
-        dataSource.setPassword(connectionConfig.password);
-        dataSource.setDatabaseName(connectionConfig.databaseName);
         final var config = new HikariConfig();
-        config.setDataSource(dataSource);
+        config.setDataSource(createPgDataSource(connectionConfig));
         config.addDataSourceProperty("cachePrepStmts", "true");
         config.addDataSourceProperty("prepStmtCacheSize", "250");
         config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
@@ -28,7 +22,13 @@ public class ConnectionPool {
         return ds;
     }
 
-    public Connection getConnection() throws SQLException {
-        return ds.getConnection();
+    private DataSource createPgDataSource(DatabaseConnectionConfig config) {
+        final var dataSource = new PGDataSource();
+        dataSource.setServerName(config.host());
+        dataSource.setPort(config.port());
+        dataSource.setUser(config.username());
+        dataSource.setPassword(config.password());
+        dataSource.setDatabaseName(config.databaseName());
+        return dataSource;
     }
 }
