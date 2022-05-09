@@ -4,6 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.grid.queue.config.ConnectionPool;
 import com.grid.queue.config.DatabaseConnectionConfig;
 import com.grid.queue.config.DatabaseTestContainer;
+import com.grid.queue.listener.Channel;
+import com.grid.queue.listener.JdbcListenerRegistration;
+import com.grid.queue.listener.ListenerRegistration;
+import com.grid.queue.listener.LoggingMessageNotificationListener;
 import com.grid.queue.message.JdbcMessageRepository;
 import com.grid.queue.message.MessageRepository;
 import org.flywaydb.core.Flyway;
@@ -14,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class DatabaseIntegrationTest {
     private static final String PUBLIC_SCHEMA = "public";
+    protected static final Channel CHANNEL = new Channel("msg");
     protected static final MessageRepository repository;
     protected static final ObjectMapper mapper;
 
@@ -33,7 +38,16 @@ public abstract class DatabaseIntegrationTest {
         assertThat(result.migrations).isNotEmpty();
         mapper = new ObjectMapper();
         repository = new JdbcMessageRepository(connectionPool.dataSource(), mapper);
-        getRuntime().addShutdownHook(new Thread(flyway::clean));
-        getRuntime().addShutdownHook(new Thread(testContainer::shutdown));
+
+        var listener = new LoggingMessageNotificationListener(CHANNEL);
+        var listenerConfig = new JdbcListenerRegistration(connectionPool.dataSource());
+        listenerConfig.listen(listener);
+        getRuntime().addShutdownHook(new Thread(() -> shutdown(flyway, testContainer, listenerConfig)));
+    }
+
+    private static void shutdown(Flyway flyway, DatabaseTestContainer testContainer, ListenerRegistration messageListener) {
+        flyway.clean();
+        testContainer.shutdown();
+        messageListener.shutdown();
     }
 }

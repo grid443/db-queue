@@ -86,7 +86,7 @@ public class MessageRepositoryTest extends DatabaseIntegrationTest {
         var body = buildMessageBody();
         for (int i = 0; i < count; i++) {
             var message = new Message(randomUUID(), "test_queue", CREATED, body, now());
-            repository.add(message);
+            repository.add(message, CHANNEL);
             messages.add(message);
         }
         return messages;
@@ -108,7 +108,7 @@ public class MessageRepositoryTest extends DatabaseIntegrationTest {
         long count = finishLatch.getCount();
         for (int i = 0; i < count; i++) {
             var message = new Message(randomUUID(), "test_queue", CREATED, body, now());
-            repository.add(message);
+            repository.add(message, CHANNEL);
             var task = new SimpleStatefulTask();
             var worker = new CoordinatedWorker(task, startLatch, finishLatch);
             workers.add(worker);

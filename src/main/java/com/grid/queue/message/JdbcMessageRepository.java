@@ -2,6 +2,7 @@ package com.grid.queue.message;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.grid.queue.listener.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +55,10 @@ public class JdbcMessageRepository implements MessageRepository {
             (?, ?, ?, ?, ?);
             """;
 
+    private static final String NOTIFY_TEMPLATE = """
+            NOTIFY %s , 'message.id[%s]'
+            """;
+
     private final DataSource dataSource;
     private final ObjectMapper mapper;
 
@@ -78,6 +83,31 @@ public class JdbcMessageRepository implements MessageRepository {
             }
         } catch (Exception e) {
             throw new RuntimeException("Error getting the last message from the queue", e);
+        }
+    }
+
+    @Override
+    public void add(Message message, Channel channel) {
+        try (final var connection = dataSource.getConnection();
+             final var statement = connection.prepareStatement(INSERT_MESSAGE_QUERY);
+             final var notifyStatement = connection.createStatement()) {
+            try {
+                connection.setAutoCommit(false);
+                final var createdAt = Timestamp.valueOf(message.createdAt().toLocalDateTime());
+                final var body = message.body().toString();
+                statement.setObject(1, message.id());
+                statement.setString(2, message.queueName());
+                statement.setString(3, message.state().name());
+                statement.setObject(4, body, JSONB);
+                statement.setObject(5, createdAt);
+                statement.executeUpdate();
+                notifyStatement.executeUpdate(String.format(NOTIFY_TEMPLATE, channel.name(), message.id()));
+                connection.commit();
+            } catch (Exception e) {
+                connection.rollback();
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Error saving message " + message.id(), e);
         }
     }
 
@@ -109,22 +139,6 @@ public class JdbcMessageRepository implements MessageRepository {
             return processedMessage;
         } catch (Exception e) {
             throw new RuntimeException("Error processing task", e);
-        }
-    }
-
-    @Override
-    public void add(Message message) {
-        try (final var connection = dataSource.getConnection();
-             final var statement = connection.prepareStatement(INSERT_MESSAGE_QUERY)) {
-            final var createdAt = Timestamp.valueOf(message.createdAt().toLocalDateTime());
-            statement.setObject(1, message.id());
-            statement.setString(2, message.queueName());
-            statement.setString(3, message.state().name());
-            statement.setObject(4, message.body().toString(), JSONB);
-            statement.setObject(5, createdAt);
-            statement.executeUpdate();
-        } catch (Exception e) {
-            throw new RuntimeException("Error saving message " + message.id(), e);
         }
     }
 
