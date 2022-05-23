@@ -48,7 +48,7 @@ public class MessageRepositoryTest extends DatabaseIntegrationTest {
     }
 
     @Test
-    void should_process_slow_tasks_independently() throws Exception {
+    void should_process_slow_tasks_in_parallel() throws Exception {
         // given
         var messages = createMessages(10);
         assertThat(messages).hasSize(10);
@@ -58,7 +58,7 @@ public class MessageRepositoryTest extends DatabaseIntegrationTest {
 
         // when
         workers.forEach(task -> runTaskWithDelay(task, MILLISECONDS, 300));
-        assertThat(finishLatch.await(3, SECONDS)).isTrue();
+        assertThat(finishLatch.await(2, SECONDS)).isTrue();
 
         // then
         var processedMessageIds = workers.stream()
